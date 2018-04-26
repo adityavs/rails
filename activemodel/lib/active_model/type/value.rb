@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module ActiveModel
   module Type
     class Value
@@ -84,11 +86,24 @@ module ActiveModel
         false
       end
 
+      def value_constructed_by_mass_assignment?(_value) # :nodoc:
+        false
+      end
+
+      def map(value) # :nodoc:
+        yield value
+      end
+
       def ==(other)
         self.class == other.class &&
           precision == other.precision &&
           scale == other.scale &&
           limit == other.limit
+      end
+      alias eql? ==
+
+      def hash
+        [self.class, precision, scale, limit].hash
       end
 
       def assert_valid_value(*)
@@ -96,12 +111,12 @@ module ActiveModel
 
       private
 
-      # Convenience method for types which do not need separate type casting
-      # behavior for user and database inputs. Called by Value#cast for
-      # values except +nil+.
-      def cast_value(value) # :doc:
-        value
-      end
+        # Convenience method for types which do not need separate type casting
+        # behavior for user and database inputs. Called by Value#cast for
+        # values except +nil+.
+        def cast_value(value) # :doc:
+          value
+        end
     end
   end
 end

@@ -1,14 +1,13 @@
+# frozen_string_literal: true
+
 module ActionController
   class ActionControllerError < StandardError #:nodoc:
   end
 
   class BadRequest < ActionControllerError #:nodoc:
-    attr_reader :original_exception
-
-    def initialize(msg = nil, e = nil)
+    def initialize(msg = nil)
       super(msg)
-      @original_exception = e
-      set_backtrace e.backtrace if e
+      set_backtrace $!.backtrace if $!
     end
   end
 
@@ -17,32 +16,29 @@ module ActionController
 
   class RoutingError < ActionControllerError #:nodoc:
     attr_reader :failures
-    def initialize(message, failures=[])
+    def initialize(message, failures = [])
       super(message)
       @failures = failures
     end
   end
 
-  class ActionController::UrlGenerationError < ActionControllerError #:nodoc:
+  class UrlGenerationError < ActionControllerError #:nodoc:
   end
 
   class MethodNotAllowed < ActionControllerError #:nodoc:
     def initialize(*allowed_methods)
-      super("Only #{allowed_methods.to_sentence(:locale => :en)} requests are allowed.")
+      super("Only #{allowed_methods.to_sentence(locale: :en)} requests are allowed.")
     end
   end
 
   class NotImplemented < MethodNotAllowed #:nodoc:
   end
 
-  class UnknownController < ActionControllerError #:nodoc:
-  end
-
   class MissingFile < ActionControllerError #:nodoc:
   end
 
   class SessionOverflowError < ActionControllerError #:nodoc:
-    DEFAULT_MESSAGE = 'Your session data is larger than the data column in which it is to be stored. You must increase the size of your data column if you intend to store large data.'
+    DEFAULT_MESSAGE = "Your session data is larger than the data column in which it is to be stored. You must increase the size of your data column if you intend to store large data."
 
     def initialize(message = nil)
       super(message || DEFAULT_MESSAGE)
@@ -53,5 +49,8 @@ module ActionController
   end
 
   class UnknownFormat < ActionControllerError #:nodoc:
+  end
+
+  class MissingExactTemplate < UnknownFormat #:nodoc:
   end
 end

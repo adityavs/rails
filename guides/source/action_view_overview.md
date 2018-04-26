@@ -7,7 +7,7 @@ After reading this guide, you will know:
 
 * What Action View is and how to use it with Rails.
 * How best to use templates, partials, and layouts.
-* What helpers are provided by Action View and how to make your own.
+* What helpers are provided by Action View.
 * How to use localized views.
 
 --------------------------------------------------------------------------------
@@ -15,7 +15,7 @@ After reading this guide, you will know:
 What is Action View?
 --------------------
 
-In Rails, web requests are handled by [Action Controller](action_controller_overview.html) and Action View. Typically, Action Controller will be concerned with communicating with the database and performing CRUD actions where necessary. Action View is then responsible for compiling the response.
+In Rails, web requests are handled by [Action Controller](action_controller_overview.html) and Action View. Typically, Action Controller is concerned with communicating with the database and performing CRUD actions where necessary. Action View is then responsible for compiling the response.
 
 Action View templates are written using embedded Ruby in tags mingled with HTML. To avoid cluttering the templates with boilerplate code, a number of helper classes provide common behavior for forms, dates, and strings. It's also easy to add new helpers to your application as it evolves.
 
@@ -149,10 +149,10 @@ end
 
 #### Jbuilder
 [Jbuilder](https://github.com/rails/jbuilder) is a gem that's
-maintained by the Rails team and included in the default Rails Gemfile.
+maintained by the Rails team and included in the default Rails `Gemfile`.
 It's similar to Builder, but is used to generate JSON, instead of XML.
 
-If you don't have it, you can add the following to your Gemfile:
+If you don't have it, you can add the following to your `Gemfile`:
 
 ```ruby
 gem 'jbuilder'
@@ -173,11 +173,11 @@ would produce:
 ```json
 {
   "name": "Alex",
-  "email: "alex@example.com"
+  "email": "alex@example.com"
 }
 ```
 
-See the [Jbuilder documention](https://github.com/rails/jbuilder#jbuilder) for
+See the [Jbuilder documentation](https://github.com/rails/jbuilder#jbuilder) for
 more examples and information.
 
 #### Template Caching
@@ -254,13 +254,7 @@ as if we had written:
 <%= render partial: "product", locals: { product: @product } %>
 ```
 
-With the `as` option we can specify a different name for the local variable. For example, if we wanted it to be `item` instead of `product` we would do:
-
-```erb
-<%= render partial: "product", as: "item" %>
-```
-
-The `object` option can be used to directly specify which object is rendered into the partial; useful when the template's object is elsewhere (eg. in a different instance variable or in a local variable).
+The `object` option can be used to directly specify which object is rendered into the partial; useful when the template's object is elsewhere (e.g. in a different instance variable or in a local variable).
 
 For example, instead of:
 
@@ -274,10 +268,16 @@ we would do:
 <%= render partial: "product", object: @item %>
 ```
 
-The `object` and `as` options can also be used together:
+With the `as` option we can specify a different name for the said local variable. For example, if we wanted it to be `item` instead of `product` we would do:
 
 ```erb
 <%= render partial: "product", object: @item, as: "item" %>
+```
+
+This is equivalent to
+
+```erb
+<%= render partial: "product", locals: { item: @item } %>
 ```
 
 #### Rendering Collections
@@ -414,12 +414,12 @@ By default, Rails links to these assets on the current host in the public folder
 
 ```ruby
 config.action_controller.asset_host = "assets.example.com"
-image_tag("rails.png") # => <img src="http://assets.example.com/images/rails.png" alt="Rails" />
+image_tag("rails.png") # => <img src="http://assets.example.com/images/rails.png" />
 ```
 
 #### auto_discovery_link_tag
 
-Returns a link tag that browsers and feed readers can use to auto-detect an RSS or Atom feed.
+Returns a link tag that browsers and feed readers can use to auto-detect an RSS, Atom, or JSON feed.
 
 ```ruby
 auto_discovery_link_tag(:rss, "http://www.example.com/feed.rss", { title: "RSS Feed" }) # =>
@@ -442,7 +442,7 @@ image_path("edit.png") # => /assets/edit-2d1a2db63fc738690021fedb5a65b68e.png
 
 #### image_url
 
-Computes the url to an image asset in the `app/assets/images` directory. This will call `image_path` internally and merge with your current host or your asset host.
+Computes the URL to an image asset in the `app/assets/images` directory. This will call `image_path` internally and merge with your current host or your asset host.
 
 ```ruby
 image_url("edit.png") # => http://www.example.com/assets/edit.png
@@ -453,7 +453,7 @@ image_url("edit.png") # => http://www.example.com/assets/edit.png
 Returns an HTML image tag for the source. The source can be a full path or a file that exists in your `app/assets/images` directory.
 
 ```ruby
-image_tag("icon.png") # => <img src="/assets/icon.png" alt="Icon" />
+image_tag("icon.png") # => <img src="/assets/icon.png" />
 ```
 
 #### javascript_include_tag
@@ -462,25 +462,6 @@ Returns an HTML script tag for each of the sources provided. You can pass in the
 
 ```ruby
 javascript_include_tag "common" # => <script src="/assets/common.js"></script>
-```
-
-If the application does not use the asset pipeline, to include the jQuery JavaScript library in your application, pass `:defaults` as the source. When using `:defaults`, if an `application.js` file exists in your `app/assets/javascripts` directory, it will be included as well.
-
-```ruby
-javascript_include_tag :defaults
-```
-
-You can also include all JavaScript files in the `app/assets/javascripts` directory using `:all` as the source.
-
-```ruby
-javascript_include_tag :all
-```
-
-You can also cache multiple JavaScript files into one file, which requires less HTTP connections to download and can better be compressed by gzip (leading to faster transfers). Caching will only happen if `ActionController::Base.perform_caching` is set to true (which is the case by default for the Rails production environment, but not for the development environment).
-
-```ruby
-javascript_include_tag :all, cache: true # =>
-  <script src="/javascripts/all.js"></script>
 ```
 
 #### javascript_path
@@ -493,7 +474,7 @@ javascript_path "common" # => /assets/common.js
 
 #### javascript_url
 
-Computes the url to a JavaScript asset in the `app/assets/javascripts` directory. This will call `javascript_path` internally and merge with your current host or your asset host.
+Computes the URL to a JavaScript asset in the `app/assets/javascripts` directory. This will call `javascript_path` internally and merge with your current host or your asset host.
 
 ```ruby
 javascript_url "common" # => http://www.example.com/assets/common.js
@@ -507,22 +488,9 @@ Returns a stylesheet link tag for the sources specified as arguments. If you don
 stylesheet_link_tag "application" # => <link href="/assets/application.css" media="screen" rel="stylesheet" />
 ```
 
-You can also include all styles in the stylesheet directory using `:all` as the source:
-
-```ruby
-stylesheet_link_tag :all
-```
-
-You can also cache multiple stylesheets into one file, which requires less HTTP connections and can better be compressed by gzip (leading to faster transfers). Caching will only happen if ActionController::Base.perform_caching is set to true (which is the case by default for the Rails production environment, but not for the development environment).
-
-```ruby
-stylesheet_link_tag :all, cache: true
-# => <link href="/assets/all.css" media="screen" rel="stylesheet" />
-```
-
 #### stylesheet_path
 
-Computes the path to a stylesheet asset in the `app/assets/stylesheets` directory. If the source filename has no extension, `.css` will be appended. Full paths from the document root will be passed through. Used internally by stylesheet_link_tag to build the stylesheet path.
+Computes the path to a stylesheet asset in the `app/assets/stylesheets` directory. If the source filename has no extension, `.css` will be appended. Full paths from the document root will be passed through. Used internally by `stylesheet_link_tag` to build the stylesheet path.
 
 ```ruby
 stylesheet_path "application" # => /assets/application.css
@@ -530,7 +498,7 @@ stylesheet_path "application" # => /assets/application.css
 
 #### stylesheet_url
 
-Computes the url to a stylesheet asset in the `app/assets/stylesheets` directory. This will call `stylesheet_path` internally and merge with your current host or your asset host.
+Computes the URL to a stylesheet asset in the `app/assets/stylesheets` directory. This will call `stylesheet_path` internally and merge with your current host or your asset host.
 
 ```ruby
 stylesheet_url "application" # => http://www.example.com/assets/application.css
@@ -599,7 +567,7 @@ This would add something like "Process data files (0.34523)" to the log, which y
 
 #### cache
 
-A method for caching fragments of a view rather than an entire action or page. This technique is useful caching pieces like menus, lists of news topics, static HTML fragments, and so on. This method takes a block that contains the content you wish to cache. See `ActionController::Caching::Fragments` for more information.
+A method for caching fragments of a view rather than an entire action or page. This technique is useful for caching pieces like menus, lists of news topics, static HTML fragments, and so on. This method takes a block that contains the content you wish to cache. See `AbstractController::Caching::Fragments` for more information.
 
 ```erb
 <% cache do %>
@@ -839,20 +807,22 @@ The core method of this helper, `form_for`, gives you the ability to create a fo
 The HTML generated for this would be:
 
 ```html
-<form action="/people/create" method="post">
-  <input id="person_first_name" name="person[first_name]" type="text" />
-  <input id="person_last_name" name="person[last_name]" type="text" />
-  <input name="commit" type="submit" value="Create" />
+<form class="new_person" id="new_person" action="/people" accept-charset="UTF-8" method="post">
+  <input name="utf8" type="hidden" value="&#x2713;" />
+  <input type="hidden" name="authenticity_token" value="lTuvBzs7ANygT0NFinXj98tfw3Emfm65wwYLbUvoWsK2pngccIQSUorM2C035M9dZswXgWTvKwFS8W5TVblpYw==" />
+  <input type="text" name="person[first_name]" id="person_first_name" />
+  <input type="text" name="person[last_name]" id="person_last_name" />
+  <input type="submit" name="commit" value="Create" data-disable-with="Create" />
 </form>
 ```
 
 The params object created when this form is submitted would look like:
 
 ```ruby
-{ "action" => "create", "controller" => "people", "person" => { "first_name" => "William", "last_name" => "Smith" } }
+{"utf8" => "✓", "authenticity_token" => "lTuvBzs7ANygT0NFinXj98tfw3Emfm65wwYLbUvoWsK2pngccIQSUorM2C035M9dZswXgWTvKwFS8W5TVblpYw==", "person" => {"first_name" => "William", "last_name" => "Smith"}, "commit" => "Create", "controller" => "people", "action" => "create"}
 ```
 
-The params hash has a nested person value, which can therefore be accessed with params[:person] in the controller.
+The params hash has a nested person value, which can therefore be accessed with `params[:person]` in the controller.
 
 #### check_box
 
@@ -990,11 +960,11 @@ Returns `select` and `option` tags for the collection of existing return values 
 Example object structure for use with this method:
 
 ```ruby
-class Article < ActiveRecord::Base
+class Article < ApplicationRecord
   belongs_to :author
 end
 
-class Author < ActiveRecord::Base
+class Author < ApplicationRecord
   has_many :articles
   def name_with_initial
     "#{first_name.first}. #{last_name}"
@@ -1026,11 +996,11 @@ Returns `radio_button` tags for the collection of existing return values of `met
 Example object structure for use with this method:
 
 ```ruby
-class Article < ActiveRecord::Base
+class Article < ApplicationRecord
   belongs_to :author
 end
 
-class Author < ActiveRecord::Base
+class Author < ApplicationRecord
   has_many :articles
   def name_with_initial
     "#{first_name.first}. #{last_name}"
@@ -1062,11 +1032,11 @@ Returns `check_box` tags for the collection of existing return values of `method
 Example object structure for use with this method:
 
 ```ruby
-class Article < ActiveRecord::Base
+class Article < ApplicationRecord
   has_and_belongs_to_many :authors
 end
 
-class Author < ActiveRecord::Base
+class Author < ApplicationRecord
   has_and_belongs_to_many :articles
   def name_with_initial
     "#{first_name.first}. #{last_name}"
@@ -1099,12 +1069,12 @@ Returns a string of `option` tags, like `options_from_collection_for_select`, bu
 Example object structure for use with this method:
 
 ```ruby
-class Continent < ActiveRecord::Base
+class Continent < ApplicationRecord
   has_many :countries
   # attribs: id, name
 end
 
-class Country < ActiveRecord::Base
+class Country < ApplicationRecord
   belongs_to :continent
   # attribs: id, name, continent_id
 end
@@ -1132,7 +1102,7 @@ Possible output:
 </optgroup>
 ```
 
-Note: Only the `optgroup` and `option` tags are returned, so you still have to wrap the output in an appropriate `select` tag.
+NOTE: Only the `optgroup` and `option` tags are returned, so you still have to wrap the output in an appropriate `select` tag.
 
 #### options_for_select
 
@@ -1143,7 +1113,7 @@ options_for_select([ "VISA", "MasterCard" ])
 # => <option>VISA</option> <option>MasterCard</option>
 ```
 
-Note: Only the `option` tags are returned, you have to wrap this call in a regular HTML `select` tag.
+NOTE: Only the `option` tags are returned, you have to wrap this call in a regular HTML `select` tag.
 
 #### options_from_collection_for_select
 
@@ -1160,7 +1130,7 @@ options_from_collection_for_select(@project.people, "id", "name")
 # => <option value="#{person.id}">#{person.name}</option>
 ```
 
-Note: Only the `option` tags are returned, you have to wrap this call in a regular HTML `select` tag.
+NOTE: Only the `option` tags are returned, you have to wrap this call in a regular HTML `select` tag.
 
 #### select
 
@@ -1192,7 +1162,7 @@ Returns a string of option tags for pretty much any time zone in the world.
 Returns select and option tags for the given object and method, using `time_zone_options_for_select` to generate the list of option tags.
 
 ```ruby
-time_zone_select( "user", "time_zone")
+time_zone_select("user", "time_zone")
 ```
 
 #### date_field
@@ -1247,7 +1217,7 @@ file_field_tag 'attachment'
 
 #### form_tag
 
-Starts a form tag that points the action to a url configured with `url_for_options` just like `ActionController::Base#url_for`.
+Starts a form tag that points the action to a URL configured with `url_for_options` just like `ActionController::Base#url_for`.
 
 ```html+erb
 <%= form_tag '/articles' do %>
@@ -1297,8 +1267,8 @@ password_field_tag 'pass'
 Creates a radio button; use groups of radio buttons named the same to allow users to select from a group of options.
 
 ```ruby
-radio_button_tag 'gender', 'male'
-# => <input id="gender_male" name="gender" type="radio" value="male" />
+radio_button_tag 'favorite_color', 'maroon'
+# => <input id="favorite_color_maroon" name="favorite_color" type="radio" value="maroon" />
 ```
 
 #### select_tag
@@ -1419,7 +1389,7 @@ number_to_percentage(100, precision: 0)        # => 100%
 
 #### number_to_phone
 
-Formats a number into a US phone number.
+Formats a number into a phone number (US by default).
 
 ```ruby
 number_to_phone(1235551234) # => 123-555-1234
@@ -1439,7 +1409,7 @@ Formats a number with the specified level of `precision`, which defaults to 3.
 
 ```ruby
 number_with_precision(111.2345)     # => 111.235
-number_with_precision(111.2345, 2)  # => 111.23
+number_with_precision(111.2345, precision: 2)  # => 111.23
 ```
 
 ### SanitizeHelper
@@ -1493,7 +1463,7 @@ strip_links('Blog: <a href="http://myblog.com/">Visit</a>.')
 #### strip_tags(html)
 
 Strips all HTML tags from the html, including comments.
-This uses the html-scanner tokenizer and so its HTML parsing ability is limited by that of html-scanner.
+This functionality is powered by the rails-html-sanitizer gem.
 
 ```ruby
 strip_tags("Strip <i>these</i> tags!")
@@ -1524,7 +1494,7 @@ Localized Views
 
 Action View has the ability to render different templates depending on the current locale.
 
-For example, suppose you have a `ArticlesController` with a show action. By default, calling this action will render `app/views/articles/show.html.erb`. But if you set `I18n.locale = :de`, then `app/views/articles/show.de.html.erb` will be rendered instead. If the localized template isn't present, the undecorated version will be used. This means you're not required to provide localized views for all cases, but they will be preferred and used if available.
+For example, suppose you have an `ArticlesController` with a show action. By default, calling this action will render `app/views/articles/show.html.erb`. But if you set `I18n.locale = :de`, then `app/views/articles/show.de.html.erb` will be rendered instead. If the localized template isn't present, the undecorated version will be used. This means you're not required to provide localized views for all cases, but they will be preferred and used if available.
 
 You can use the same technique to localize the rescue files in your public directory. For example, setting `I18n.locale = :de` and creating `public/500.de.html` and `public/404.de.html` would allow you to have localized rescue pages.
 

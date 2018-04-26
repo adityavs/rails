@@ -21,9 +21,9 @@ After reading this guide, you will know:
 What Does a Controller Do?
 --------------------------
 
-Action Controller is the C in MVC. After routing has determined which controller to use for a request, the controller is responsible for making sense of the request and producing the appropriate output. Luckily, Action Controller does most of the groundwork for you and uses smart conventions to make this as straightforward as possible.
+Action Controller is the C in [MVC](https://en.wikipedia.org/wiki/Model%E2%80%93view%E2%80%93controller). After the router has determined which controller to use for a request, the controller is responsible for making sense of the request, and producing the appropriate output. Luckily, Action Controller does most of the groundwork for you and uses smart conventions to make this as straightforward as possible.
 
-For most conventional [RESTful](http://en.wikipedia.org/wiki/Representational_state_transfer) applications, the controller will receive the request (this is invisible to you as the developer), fetch or save data from a model and use a view to create HTML output. If your controller needs to do things a little differently, that's not a problem, this is just the most common way for a controller to work.
+For most conventional [RESTful](https://en.wikipedia.org/wiki/Representational_state_transfer) applications, the controller will receive the request (this is invisible to you as the developer), fetch or save data from a model and use a view to create HTML output. If your controller needs to do things a little differently, that's not a problem, this is just the most common way for a controller to work.
 
 A controller can thus be thought of as a middleman between models and views. It makes the model data available to the view so it can display that data to the user, and it saves or updates user data to the model.
 
@@ -51,7 +51,7 @@ class ClientsController < ApplicationController
 end
 ```
 
-As an example, if a user goes to `/clients/new` in your application to add a new client, Rails will create an instance of `ClientsController` and call its `new` method. Note that the empty method from the example above would work just fine because Rails will by default render the `new.html.erb` view unless the action says otherwise. The `new` method could make available to the view a `@client` instance variable by creating a new `Client`:
+As an example, if a user goes to `/clients/new` in your application to add a new client, Rails will create an instance of `ClientsController` and call its `new` method. Note that the empty method from the example above would work just fine because Rails will by default render the `new.html.erb` view unless the action says otherwise. By creating a new `Client`, the `new` method can make a `@client` instance variable accessible in the view:
 
 ```ruby
 def new
@@ -61,7 +61,7 @@ end
 
 The [Layouts & Rendering Guide](layouts_and_rendering.html) explains this in more detail.
 
-`ApplicationController` inherits from `ActionController::Base`, which defines a number of helpful methods. This guide will cover some of these, but if you're curious to see what's in there, you can see all of them in the API documentation or in the source itself.
+`ApplicationController` inherits from `ActionController::Base`, which defines a number of helpful methods. This guide will cover some of these, but if you're curious to see what's in there, you can see all of them in the [API documentation](http://api.rubyonrails.org/classes/ActionController.html) or in the source itself.
 
 Only public methods are callable as actions. It is a best practice to lower the visibility of methods (with `private` or `protected`) which are not intended to be actions, like auxiliary methods or filters.
 
@@ -145,7 +145,7 @@ So for example, if you are sending this JSON content:
 
 Your controller will receive `params[:company]` as `{ "name" => "acme", "address" => "123 Carrot Street" }`.
 
-Also, if you've turned on `config.wrap_parameters` in your initializer or called `wrap_parameters` in your controller, you can safely omit the root element in the JSON parameter. In this case, the parameters will be cloned and wrapped with a key chosen based on your controller's name. So the above JSON POST can be written as:
+Also, if you've turned on `config.wrap_parameters` in your initializer or called `wrap_parameters` in your controller, you can safely omit the root element in the JSON parameter. In this case, the parameters will be cloned and wrapped with a key chosen based on your controller's name. So the above JSON request can be written as:
 
 ```json
 { "name": "acme", "address": "123 Carrot Street" }
@@ -199,11 +199,12 @@ practice to help prevent accidentally allowing users to update sensitive
 model attributes.
 
 In addition, parameters can be marked as required and will flow through a
-predefined raise/rescue flow to end up as a 400 Bad Request.
+predefined raise/rescue flow that will result in a 400 Bad Request being
+returned if not all required parameters are passed in.
 
 ```ruby
 class PeopleController < ActionController::Base
-  # This will raise an ActiveModel::ForbiddenAttributes exception
+  # This will raise an ActiveModel::ForbiddenAttributesError exception
   # because it's using mass assignment without an explicit permit
   # step.
   def create
@@ -213,8 +214,8 @@ class PeopleController < ActionController::Base
   # This will pass with flying colors as long as there's a person key
   # in the parameters, otherwise it'll raise a
   # ActionController::ParameterMissing exception, which will get
-  # caught by ActionController::Base and turned into that 400 Bad
-  # Request reply.
+  # caught by ActionController::Base and turned into a 400 Bad
+  # Request error.
   def update
     person = current_account.people.find(params[:id])
     person.update!(person_params)
@@ -257,6 +258,17 @@ scalar values, map the key to an empty array:
 params.permit(id: [])
 ```
 
+Sometimes it is not possible or convenient to declare the valid keys of
+a hash parameter or its internal structure. Just map to an empty hash:
+
+```ruby
+params.permit(preferences: {})
+```
+
+but be careful because this opens the door to arbitrary input. In this
+case, `permit` ensures values in the returned structure are permitted
+scalars and filters out anything else.
+
 To whitelist an entire hash of parameters, the `permit!` method can be
 used:
 
@@ -264,9 +276,10 @@ used:
 params.require(:log_entry).permit!
 ```
 
-This will mark the `:log_entry` parameters hash and any sub-hash of it as
-permitted. Extreme care should be taken when using `permit!`, as it
-will allow all current and future model attributes to be mass-assigned.
+This marks the `:log_entry` parameters hash and any sub-hash of it as
+permitted and does not check for permitted scalars, anything is accepted.
+Extreme care should be taken when using `permit!`, as it will allow all current
+and future model attributes to be mass-assigned.
 
 #### Nested Parameters
 
@@ -361,7 +374,7 @@ If your user sessions don't store critical data or don't need to be around for l
 
 Read more about session storage in the [Security Guide](security.html).
 
-If you need a different session storage mechanism, you can change it in the `config/initializers/session_store.rb` file:
+If you need a different session storage mechanism, you can change it in an initializer:
 
 ```ruby
 # Use the database for sessions instead of the cookie-based default,
@@ -370,7 +383,7 @@ If you need a different session storage mechanism, you can change it in the `con
 # Rails.application.config.session_store :active_record_store
 ```
 
-Rails sets up a session key (the name of the cookie) when signing the session data. These can also be changed in `config/initializers/session_store.rb`:
+Rails sets up a session key (the name of the cookie) when signing the session data. These can also be changed in an initializer:
 
 ```ruby
 # Be sure to restart your server when you modify this file.
@@ -384,34 +397,18 @@ You can also pass a `:domain` key and specify the domain name for the cookie:
 Rails.application.config.session_store :cookie_store, key: '_your_app_session', domain: ".example.com"
 ```
 
-Rails sets up (for the CookieStore) a secret key used for signing the session data. This can be changed in `config/secrets.yml`
+Rails sets up (for the CookieStore) a secret key used for signing the session data in `config/credentials.yml.enc`. This can be changed with `bin/rails credentials:edit`.
 
 ```ruby
-# Be sure to restart your server when you modify this file.
+# aws:
+#   access_key_id: 123
+#   secret_access_key: 345
 
-# Your secret key is used for verifying the integrity of signed cookies.
-# If you change this key, all old signed cookies will become invalid!
-
-# Make sure the secret is at least 30 characters and all random,
-# no regular words or you'll be exposed to dictionary attacks.
-# You can use `rake secret` to generate a secure secret key.
-
-# Make sure the secrets in this file are kept private
-# if you're sharing your code publicly.
-
-development:
-  secret_key_base: a75d...
-
-test:
-  secret_key_base: 492f...
-
-# Do not keep production secrets in the repository,
-# instead read values from the environment.
-production:
-  secret_key_base: <%= ENV["SECRET_KEY_BASE"] %>
+# Used as the base secret for all MessageVerifiers in Rails, including the one protecting cookies.
+secret_key_base: 492f...
 ```
 
-NOTE: Changing the secret when using the `CookieStore` will invalidate all existing sessions.
+NOTE: Changing the secret_key_base when using the `CookieStore` will invalidate all existing sessions.
 
 ### Accessing the Session
 
@@ -453,14 +450,16 @@ class LoginsController < ApplicationController
 end
 ```
 
-To remove something from the session, assign that key to be `nil`:
+To remove something from the session, delete the key/value pair:
 
 ```ruby
 class LoginsController < ApplicationController
   # "Delete" a login, aka "log the user out"
   def destroy
     # Remove the user id from the session
-    @_current_user = session[:current_user_id] = nil
+    session.delete(:current_user_id)
+    # Clear the memoized current user
+    @_current_user = nil
     redirect_to root_url
   end
 end
@@ -479,7 +478,7 @@ Let's use the act of logging out as an example. The controller can send a messag
 ```ruby
 class LoginsController < ApplicationController
   def destroy
-    session[:current_user_id] = nil
+    session.delete(:current_user_id)
     flash[:notice] = "You have successfully logged out."
     redirect_to root_url
   end
@@ -657,8 +656,8 @@ class UsersController < ApplicationController
     @users = User.all
     respond_to do |format|
       format.html # index.html.erb
-      format.xml  { render xml: @users}
-      format.json { render json: @users}
+      format.xml  { render xml: @users }
+      format.json { render json: @users }
     end
   end
 end
@@ -700,13 +699,16 @@ class LoginsController < ApplicationController
 end
 ```
 
-Now, the `LoginsController`'s `new` and `create` actions will work as before without requiring the user to be logged in. The `:only` option is used to only skip this filter for these actions, and there is also an `:except` option which works the other way. These options can be used when adding filters too, so you can add a filter which only runs for selected actions in the first place.
+Now, the `LoginsController`'s `new` and `create` actions will work as before without requiring the user to be logged in. The `:only` option is used to skip this filter only for these actions, and there is also an `:except` option which works the other way. These options can be used when adding filters too, so you can add a filter which only runs for selected actions in the first place.
+
+NOTE: Calling the same filter multiple times with different options will not work,
+since the last filter definition will overwrite the previous ones.
 
 ### After Filters and Around Filters
 
 In addition to "before" filters, you can also run filters after an action has been executed, or both before and after.
 
-"after" filters are similar to "before" filters, but because the action has already been run they have access to the response data that's about to be sent to the client. Obviously, "after" filters cannot stop the action from running.
+"after" filters are similar to "before" filters, but because the action has already been run they have access to the response data that's about to be sent to the client. Obviously, "after" filters cannot stop the action from running. Please note that "after" filters are executed only after a successful action, but not when an exception is raised in the request cycle.
 
 "around" filters are responsible for running their associated actions by yielding, similar to how Rack middlewares work.
 
@@ -784,9 +786,9 @@ The way this is done is to add a non-guessable token which is only known to your
 If you generate a form like this:
 
 ```erb
-<%= form_for @user do |f| %>
-  <%= f.text_field :username %>
-  <%= f.text_field :password %>
+<%= form_with model: @user, local: true do |form| %>
+  <%= form.text_field :username %>
+  <%= form.text_field :password %>
 <% end %>
 ```
 
@@ -814,7 +816,7 @@ In every controller there are two accessor methods pointing to the request and t
 
 ### The `request` Object
 
-The request object contains a lot of useful information about the request coming in from the client. To get a full list of the available methods, refer to the [API documentation](http://api.rubyonrails.org/classes/ActionDispatch/Request.html). Among the properties that you can access on this object are:
+The request object contains a lot of useful information about the request coming in from the client. To get a full list of the available methods, refer to the [Rails API documentation](http://api.rubyonrails.org/classes/ActionDispatch/Request.html) and [Rack Documentation](http://www.rubydoc.info/github/rack/rack/Rack/Request). Among the properties that you can access on this object are:
 
 | Property of `request`                     | Purpose                                                                          |
 | ----------------------------------------- | -------------------------------------------------------------------------------- |
@@ -836,7 +838,7 @@ Rails collects all of the parameters sent along with the request in the `params`
 
 ### The `response` Object
 
-The response object is not usually used directly, but is built up during the execution of the action and rendering of the data that is being sent back to the user, but sometimes - like in an after filter - it can be useful to access the response directly. Some of these accessor methods also have setters, allowing you to change their values.
+The response object is not usually used directly, but is built up during the execution of the action and rendering of the data that is being sent back to the user, but sometimes - like in an after filter - it can be useful to access the response directly. Some of these accessor methods also have setters, allowing you to change their values. To get a full list of the available methods, refer to the [Rails API documentation](http://api.rubyonrails.org/classes/ActionDispatch/Response.html) and [Rack Documentation](http://www.rubydoc.info/github/rack/rack/Rack/Response).
 
 | Property of `response` | Purpose                                                                                             |
 | ---------------------- | --------------------------------------------------------------------------------------------------- |
@@ -855,7 +857,7 @@ If you want to set custom headers for a response then `response.headers` is the 
 response.headers["Content-Type"] = "application/pdf"
 ```
 
-Note: in the above case it would make more sense to use the `content_type` setter directly.
+NOTE: In the above case it would make more sense to use the `content_type` setter directly.
 
 HTTP Authentications
 --------------------
@@ -995,10 +997,6 @@ you would like in a response object. The `ActionController::Live` module allows
 you to create a persistent connection with a browser. Using this module, you will
 be able to send arbitrary data to the browser at specific points in time.
 
-NOTE: The default Rails server (WEBrick) is a buffering web server and does not
-support streaming. In order to use this feature, you'll need to use a non buffering
-server like [Puma](http://puma.io), [Rainbows](http://rainbows.bogomips.org)
-or [Passenger](https://www.phusionpassenger.com).
 
 #### Incorporating Live Streaming
 
@@ -1092,6 +1090,8 @@ You can filter out sensitive request parameters from your log files by appending
 config.filter_parameters << :password
 ```
 
+NOTE: Provided parameters will be filtered out by partial matching regular expression. Rails adds default `:password` in the appropriate initializer (`initializers/filter_parameter_logging.rb`) and cares about typical application parameters `password` and `password_confirmation`.
+
 ### Redirects Filtering
 
 Sometimes it's desirable to filter out from log files some sensitive locations your application is redirecting to.
@@ -1118,7 +1118,7 @@ Rails default exception handling displays a "500 Server Error" message for all e
 
 ### The Default 500 and 404 Templates
 
-By default a production application will render either a 404 or a 500 error message. These messages are contained in static HTML files in the `public` folder, in `404.html` and `500.html` respectively. You can customize these files to add some extra information and style, but remember that they are static HTML; i.e. you can't use ERB, SCSS, CoffeeScript, or layouts for them.
+By default a production application will render either a 404 or a 500 error message, in the development environment all unhandled exceptions are raised. These messages are contained in static HTML files in the public folder, in `404.html` and `500.html` respectively. You can customize these files to add some extra information and style, but remember that they are static HTML; i.e. you can't use ERB, SCSS, CoffeeScript, or layouts for them.
 
 ### `rescue_from`
 
@@ -1150,7 +1150,7 @@ class ApplicationController < ActionController::Base
 
     def user_not_authorized
       flash[:error] = "You don't have access to this section."
-      redirect_to :back
+      redirect_back(fallback_location: root_path)
     end
 end
 
@@ -1172,29 +1172,17 @@ class ClientsController < ApplicationController
 end
 ```
 
-WARNING: You shouldn't do `rescue_from Exception` or `rescue_from StandardError` unless you have a particular reason as it will cause serious side-effects (e.g. you won't be able to see exception details and tracebacks during development).
+WARNING: Using `rescue_from` with `Exception` or `StandardError` would cause serious side-effects as it prevents Rails from handling exceptions properly. As such, it is not recommended to do so unless there is a strong reason.
 
-NOTE: Certain exceptions are only rescuable from the `ApplicationController` class, as they are raised before the controller gets initialized and the action gets executed. 
+NOTE: When running in the production environment, all
+`ActiveRecord::RecordNotFound` errors render the 404 error page. Unless you need
+a custom behavior you don't need to handle this.
+
+NOTE: Certain exceptions are only rescuable from the `ApplicationController` class, as they are raised before the controller gets initialized and the action gets executed.
 
 Force HTTPS protocol
 --------------------
 
-Sometime you might want to force a particular controller to only be accessible via an HTTPS protocol for security reasons. You can use the `force_ssl` method in your controller to enforce that:
-
-```ruby
-class DinnerController
-  force_ssl
-end
-```
-
-Just like the filter, you could also pass `:only` and `:except` to enforce the secure connection only to specific actions:
-
-```ruby
-class DinnerController
-  force_ssl only: :cheeseburger
-  # or
-  force_ssl except: :cheeseburger
-end
-```
-
-Please note that if you find yourself adding `force_ssl` to many controllers, you may want to force the whole application to use HTTPS instead. In that case, you can set the `config.force_ssl` in your environment file.
+If you'd like to ensure that communication to your controller is only possible
+via HTTPS, you should do so by enabling the `ActionDispatch::SSL` middleware via
+`config.force_ssl` in your environment configuration.

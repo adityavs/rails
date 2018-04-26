@@ -235,7 +235,7 @@ behavior out of the box:
 
 The latest version of Active Model can be installed with RubyGems:
 
-  % gem install activemodel
+  $ gem install activemodel
 
 Source code can be downloaded as part of the Rails project on GitHub
 
@@ -246,20 +246,19 @@ Source code can be downloaded as part of the Rails project on GitHub
 
 Active Model is released under the MIT license:
 
-* http://www.opensource.org/licenses/MIT
+* https://opensource.org/licenses/MIT
 
 
 == Support
 
-API documentation is at
+API documentation is at:
 
 * http://api.rubyonrails.org
 
-Bug reports can be filed for the Ruby on Rails project here:
+Bug reports for the Ruby on Rails project can be filed here:
 
 * https://github.com/rails/rails/issues
 
 Feature requests should be discussed on the rails-core mailing list here:
 
 * https://groups.google.com/forum/?fromgroups#!forum/rubyonrails-core
-

@@ -1,7 +1,8 @@
+# frozen_string_literal: true
+
 module ActiveRecord
   class TableMetadata # :nodoc:
-    delegate :foreign_type, :foreign_key, to: :association, prefix: true
-    delegate :association_primary_key, to: :association
+    delegate :foreign_type, :foreign_key, :join_primary_key, :join_foreign_key, to: :association, prefix: true
 
     def initialize(klass, arel_table, association = nil)
       @klass = klass
@@ -10,9 +11,7 @@ module ActiveRecord
     end
 
     def resolve_column_aliases(hash)
-      # This method is a hot spot, so for now, use Hash[] to dup the hash.
-      #   https://bugs.ruby-lang.org/issues/7166
-      new_hash = Hash[hash]
+      new_hash = hash.dup
       hash.each do |key, _|
         if (key.is_a?(Symbol)) && klass.attribute_alias?(key)
           new_hash[klass.attribute_alias(key)] = new_hash.delete(key)
@@ -22,15 +21,23 @@ module ActiveRecord
     end
 
     def arel_attribute(column_name)
-      arel_table[column_name]
+      if klass
+        klass.arel_attribute(column_name, arel_table)
+      else
+        arel_table[column_name]
+      end
     end
 
     def type(column_name)
       if klass
-        klass.type_for_attribute(column_name.to_s)
+        klass.type_for_attribute(column_name)
       else
-        Type::Value.new
+        Type.default_value
       end
+    end
+
+    def has_column?(column_name)
+      klass && klass.columns_hash.key?(column_name.to_s)
     end
 
     def associated_with?(association_name)
@@ -38,10 +45,11 @@ module ActiveRecord
     end
 
     def associated_table(table_name)
-      return self if table_name == arel_table.name
+      association = klass._reflect_on_association(table_name) || klass._reflect_on_association(table_name.to_s.singularize)
 
-      association = klass._reflect_on_association(table_name)
-      if association && !association.polymorphic?
+      if !association && table_name == arel_table.name
+        return self
+      elsif association && !association.polymorphic?
         association_klass = association.klass
         arel_table = association_klass.arel_table.alias(table_name)
       else
@@ -57,8 +65,15 @@ module ActiveRecord
       association && association.polymorphic?
     end
 
-    protected
+    def aggregated_with?(aggregation_name)
+      klass && reflect_on_aggregation(aggregation_name)
+    end
 
-    attr_reader :klass, :arel_table, :association
+    def reflect_on_aggregation(aggregation_name)
+      klass.reflect_on_aggregation(aggregation_name)
+    end
+
+    private
+      attr_reader :klass, :arel_table, :association
   end
 end

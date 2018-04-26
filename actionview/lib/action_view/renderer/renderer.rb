@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module ActionView
   # This is the main entry point for rendering. It basically delegates
   # to other objects like TemplateRenderer and PartialRenderer which
@@ -15,7 +17,7 @@ module ActionView
       @lookup_context = lookup_context
     end
 
-    # Main render entry point shared by AV and AC.
+    # Main render entry point shared by Action View and Action Controller.
     def render(context, options)
       if options.key?(:partial)
         render_partial(context, options)
@@ -45,6 +47,10 @@ module ActionView
     # Direct access to partial rendering.
     def render_partial(context, options, &block) #:nodoc:
       PartialRenderer.new(@lookup_context).render(context, options, block)
+    end
+
+    def cache_hits # :nodoc:
+      @cache_hits ||= {}
     end
   end
 end

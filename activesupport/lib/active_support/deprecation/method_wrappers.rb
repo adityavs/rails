@@ -1,14 +1,14 @@
-require 'active_support/core_ext/module/aliasing'
-require 'active_support/core_ext/array/extract_options'
+# frozen_string_literal: true
+
+require "active_support/core_ext/module/aliasing"
+require "active_support/core_ext/array/extract_options"
 
 module ActiveSupport
   class Deprecation
     module MethodWrapper
       # Declare that a method has been deprecated.
       #
-      #   module Fred
-      #     extend self
-      #
+      #   class Fred
       #     def aaa; end
       #     def bbb; end
       #     def ccc; end
@@ -18,18 +18,18 @@ module ActiveSupport
       #
       # Using the default deprecator:
       #   ActiveSupport::Deprecation.deprecate_methods(Fred, :aaa, bbb: :zzz, ccc: 'use Bar#ccc instead')
-      #   # => [:aaa, :bbb, :ccc]
+      #   # => Fred
       #
-      #   Fred.aaa
-      #   # DEPRECATION WARNING: aaa is deprecated and will be removed from Rails 5.0. (called from irb_binding at (irb):10)
+      #   Fred.new.aaa
+      #   # DEPRECATION WARNING: aaa is deprecated and will be removed from Rails 5.1. (called from irb_binding at (irb):10)
       #   # => nil
       #
-      #   Fred.bbb
-      #   # DEPRECATION WARNING: bbb is deprecated and will be removed from Rails 5.0 (use zzz instead). (called from irb_binding at (irb):11)
+      #   Fred.new.bbb
+      #   # DEPRECATION WARNING: bbb is deprecated and will be removed from Rails 5.1 (use zzz instead). (called from irb_binding at (irb):11)
       #   # => nil
       #
-      #   Fred.ccc
-      #   # DEPRECATION WARNING: ccc is deprecated and will be removed from Rails 5.0 (use Bar#ccc instead). (called from irb_binding at (irb):12)
+      #   Fred.new.ccc
+      #   # DEPRECATION WARNING: ccc is deprecated and will be removed from Rails 5.1 (use Bar#ccc instead). (called from irb_binding at (irb):12)
       #   # => nil
       #
       # Passing in a custom deprecator:
@@ -37,7 +37,7 @@ module ActiveSupport
       #   ActiveSupport::Deprecation.deprecate_methods(Fred, ddd: :zzz, deprecator: custom_deprecator)
       #   # => [:ddd]
       #
-      #   Fred.ddd
+      #   Fred.new.ddd
       #   DEPRECATION WARNING: ddd is deprecated and will be removed from MyGem next-release (use zzz instead). (called from irb_binding at (irb):15)
       #   # => nil
       #
@@ -46,7 +46,7 @@ module ActiveSupport
       #   custom_deprecator.deprecate_methods(Fred, eee: :zzz)
       #   # => [:eee]
       #
-      #   Fred.eee
+      #   Fred.new.eee
       #   DEPRECATION WARNING: eee is deprecated and will be removed from MyGem next-release (use zzz instead). (called from irb_binding at (irb):18)
       #   # => nil
       def deprecate_methods(target_module, *method_names)
@@ -59,6 +59,13 @@ module ActiveSupport
             define_method(method_name) do |*args, &block|
               deprecator.deprecation_warning(method_name, options[method_name])
               super(*args, &block)
+            end
+
+            case
+            when target_module.protected_method_defined?(method_name)
+              protected method_name
+            when target_module.private_method_defined?(method_name)
+              private method_name
             end
           end
         end

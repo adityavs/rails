@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "abstract_unit"
 require "abstract_controller/rendering"
 
@@ -33,7 +35,7 @@ class LookupContextTest < ActiveSupport::TestCase
 
   test "allows me to freeze and retrieve frozen formats" do
     @lookup_context.formats.freeze
-    assert @lookup_context.formats.frozen?
+    assert_predicate @lookup_context.formats, :frozen?
   end
 
   test "provides getters and setters for variants" do
@@ -120,8 +122,8 @@ class LookupContextTest < ActiveSupport::TestCase
 
     @lookup_context.with_fallbacks do
       assert_equal 3, @lookup_context.view_paths.size
-      assert @lookup_context.view_paths.include?(ActionView::FallbackFileSystemResolver.new(""))
-      assert @lookup_context.view_paths.include?(ActionView::FallbackFileSystemResolver.new("/"))
+      assert_includes @lookup_context.view_paths, ActionView::FallbackFileSystemResolver.new("")
+      assert_includes @lookup_context.view_paths, ActionView::FallbackFileSystemResolver.new("/")
     end
   end
 
@@ -193,7 +195,7 @@ class LookupContextTest < ActiveSupport::TestCase
 
     assert @lookup_context.cache
     template = @lookup_context.disable_cache do
-      assert !@lookup_context.cache
+      assert_not @lookup_context.cache
       @lookup_context.find("foo", %w(test), true)
     end
     assert @lookup_context.cache
@@ -279,10 +281,9 @@ class TestMissingTemplate < ActiveSupport::TestCase
 
   test "if a single prefix is passed as a string and the lookup fails, MissingTemplate accepts it" do
     e = assert_raise ActionView::MissingTemplate do
-      details = {:handlers=>[], :formats=>[], :variants=>[], :locale=>[]}
+      details = { handlers: [], formats: [], variants: [], locale: [] }
       @lookup_context.view_paths.find("foo", "parent", true, details)
     end
     assert_match %r{Missing partial parent/_foo with .* Searched in:\n  \* "/Path/to/views"\n}, e.message
   end
-
 end

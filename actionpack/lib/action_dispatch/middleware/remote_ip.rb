@@ -1,4 +1,6 @@
-require 'ipaddr'
+# frozen_string_literal: true
+
+require "ipaddr"
 
 module ActionDispatch
   # This middleware calculates the IP address of the remote client that is
@@ -10,7 +12,7 @@ module ActionDispatch
   # by @gingerlime. A more detailed explanation of the algorithm is given
   # at GetIp#calculate_ip.
   #
-  # Some Rack servers concatenate repeated headers, like {HTTP RFC 2616}[http://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2]
+  # Some Rack servers concatenate repeated headers, like {HTTP RFC 2616}[https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2]
   # requires. Some Rack servers simply drop preceding headers, and only report
   # the value that was {given in the last header}[http://andre.arko.net/2011/12/26/repeated-headers-and-ruby-web-servers].
   # If you are behind multiple proxy servers (like NGINX to HAProxy to Unicorn)
@@ -29,7 +31,7 @@ module ActionDispatch
     # The default trusted IPs list simply includes IP addresses that are
     # guaranteed by the IP specification to be private addresses. Those will
     # not be the ultimate client IP in production, and so are discarded. See
-    # http://en.wikipedia.org/wiki/Private_network for details.
+    # https://en.wikipedia.org/wiki/Private_network for details.
     TRUSTED_PROXIES = [
       "127.0.0.1",      # localhost IPv4
       "::1",            # localhost IPv6
@@ -43,7 +45,7 @@ module ActionDispatch
 
     # Create a new +RemoteIp+ middleware instance.
     #
-    # The +check_ip_spoofing+ option is on by default. When on, an exception
+    # The +ip_spoofing_check+ option is on by default. When on, an exception
     # is raised if it looks like the client is trying to lie about its own IP
     # address. It makes sense to turn off this check on sites aimed at non-IP
     # clients (like WAP devices), or behind proxies that set headers in an
@@ -57,9 +59,9 @@ module ActionDispatch
     # with your proxy servers after it. If your proxies aren't removed, pass
     # them in via the +custom_proxies+ parameter. That way, the middleware will
     # ignore those IP addresses, and return the one that you want.
-    def initialize(app, check_ip_spoofing = true, custom_proxies = nil)
+    def initialize(app, ip_spoofing_check = true, custom_proxies = nil)
       @app = app
-      @check_ip = check_ip_spoofing
+      @check_ip = ip_spoofing_check
       @proxies = if custom_proxies.blank?
         TRUSTED_PROXIES
       elsif custom_proxies.respond_to?(:any?)
@@ -116,15 +118,23 @@ module ActionDispatch
         forwarded_ips = ips_from(@req.x_forwarded_for).reverse
 
         # +Client-Ip+ and +X-Forwarded-For+ should not, generally, both be set.
-        # If they are both set, it means that this request passed through two
-        # proxies with incompatible IP header conventions, and there is no way
-        # for us to determine which header is the right one after the fact.
-        # Since we have no idea, we give up and explode.
+        # If they are both set, it means that either:
+        #
+        # 1) This request passed through two proxies with incompatible IP header
+        #    conventions.
+        # 2) The client passed one of +Client-Ip+ or +X-Forwarded-For+
+        #    (whichever the proxy servers weren't using) themselves.
+        #
+        # Either way, there is no way for us to determine which header is the
+        # right one after the fact. Since we have no idea, if we are concerned
+        # about IP spoofing we need to give up and explode. (If you're not
+        # concerned about IP spoofing you can turn the +ip_spoofing_check+
+        # option off.)
         should_check_ip = @check_ip && client_ips.last && forwarded_ips.last
         if should_check_ip && !forwarded_ips.include?(client_ips.last)
           # We don't know which came from the proxy, and which from the user
-          raise IpSpoofAttackError, "IP spoofing attack?! " +
-            "HTTP_CLIENT_IP=#{@req.client_ip.inspect} " +
+          raise IpSpoofAttackError, "IP spoofing attack?! " \
+            "HTTP_CLIENT_IP=#{@req.client_ip.inspect} " \
             "HTTP_X_FORWARDED_FOR=#{@req.x_forwarded_for.inspect}"
         end
 
@@ -145,17 +155,17 @@ module ActionDispatch
         @ip ||= calculate_ip
       end
 
-    protected
+    private
 
-      def ips_from(header)
+      def ips_from(header) # :doc:
         return [] unless header
-        # Split the comma-separated list into an array of strings
+        # Split the comma-separated list into an array of strings.
         ips = header.strip.split(/[,\s]+/)
         ips.select do |ip|
           begin
-            # Only return IPs that are valid according to the IPAddr#new method
+            # Only return IPs that are valid according to the IPAddr#new method.
             range = IPAddr.new(ip).to_range
-            # we want to make sure nobody is sneaking a netmask in
+            # We want to make sure nobody is sneaking a netmask in.
             range.begin == range.end
           rescue ArgumentError
             nil
@@ -163,13 +173,11 @@ module ActionDispatch
         end
       end
 
-      def filter_proxies(ips)
+      def filter_proxies(ips) # :doc:
         ips.reject do |ip|
           @proxies.any? { |proxy| proxy === ip }
         end
       end
-
     end
-
   end
 end

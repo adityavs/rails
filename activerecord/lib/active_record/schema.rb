@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module ActiveRecord
   # = Active Record \Schema
   #
@@ -27,7 +29,7 @@ module ActiveRecord
   #
   # ActiveRecord::Schema is only supported by database adapters that also
   # support migrations, the two features being very similar.
-  class Schema < Migration
+  class Schema < Migration::Current
     # Eval the given block. All methods available to the current connection
     # adapter are available within the block, so you can easily use the
     # database definition DSL to build up your schema (
@@ -37,10 +39,10 @@ module ActiveRecord
     # The +info+ hash is optional, and if given is used to define metadata
     # about the current schema (currently, only the schema's version):
     #
-    #   ActiveRecord::Schema.define(version: 20380119000001) do
+    #   ActiveRecord::Schema.define(version: 2038_01_19_000001) do
     #     ...
     #   end
-    def self.define(info={}, &block)
+    def self.define(info = {}, &block)
       new.define(info, &block)
     end
 
@@ -48,9 +50,12 @@ module ActiveRecord
       instance_eval(&block)
 
       if info[:version].present?
-        initialize_schema_migrations_table
+        ActiveRecord::SchemaMigration.create_table
         connection.assume_migrated_upto_version(info[:version], migrations_paths)
       end
+
+      ActiveRecord::InternalMetadata.create_table
+      ActiveRecord::InternalMetadata[:environment] = connection.migration_context.current_environment
     end
 
     private
@@ -58,7 +63,7 @@ module ActiveRecord
       #
       #   ActiveRecord::Schema.new.migrations_paths
       #   # => ["db/migrate"] # Rails migration path by default.
-      def migrations_paths # :nodoc:
+      def migrations_paths
         ActiveRecord::Migrator.migrations_paths
       end
   end

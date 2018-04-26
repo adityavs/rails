@@ -1,53 +1,77 @@
-require 'abstract_unit'
+# frozen_string_literal: true
+
+require "abstract_unit"
+
+class Workshop
+  extend ActiveModel::Naming
+  include ActiveModel::Conversion
+  attr_accessor :id
+
+  def initialize(id)
+    @id = id
+  end
+
+  def persisted?
+    id.present?
+  end
+
+  def to_s
+    id.to_s
+  end
+end
 
 class RedirectController < ActionController::Base
   # empty method not used anywhere to ensure methods like
   # `status` and `location` aren't called on `redirect_to` calls
-  def status; render plain: 'called status'; end
-  def location; render plain: 'called location'; end
+  def status; raise "Should not be called!"; end
+  def location; raise "Should not be called!"; end
 
   def simple_redirect
-    redirect_to :action => "hello_world"
+    redirect_to action: "hello_world"
   end
 
   def redirect_with_status
-    redirect_to({:action => "hello_world", :status => 301})
+    redirect_to(action: "hello_world", status: 301)
   end
 
   def redirect_with_status_hash
-    redirect_to({:action => "hello_world"}, {:status => 301})
+    redirect_to({ action: "hello_world" }, { status: 301 })
   end
 
   def redirect_with_protocol
-    redirect_to :action => "hello_world", :protocol => "https"
+    redirect_to action: "hello_world", protocol: "https"
   end
 
   def url_redirect_with_status
-    redirect_to("http://www.example.com", :status => :moved_permanently)
+    redirect_to("http://www.example.com", status: :moved_permanently)
   end
 
   def url_redirect_with_status_hash
-    redirect_to("http://www.example.com", {:status => 301})
+    redirect_to("http://www.example.com", status: 301)
   end
 
   def relative_url_redirect_with_status
-    redirect_to("/things/stuff", :status => :found)
+    redirect_to("/things/stuff", status: :found)
   end
 
   def relative_url_redirect_with_status_hash
-    redirect_to("/things/stuff", {:status => 301})
+    redirect_to("/things/stuff", status: 301)
   end
 
-  def redirect_to_back_with_status
-    redirect_to :back, :status => 307
+  def redirect_back_with_status
+    redirect_back(fallback_location: "/things/stuff", status: 307)
+  end
+
+  def safe_redirect_back_with_status
+    redirect_back(fallback_location: "/things/stuff", status: 307, allow_other_host: false)
   end
 
   def host_redirect
-    redirect_to :action => "other_host", :only_path => false, :host => 'other.test.host'
+    redirect_to action: "other_host", only_path: false, host: "other.test.host"
   end
 
   def module_redirect
-    redirect_to :controller => 'module_test/module_redirect', :action => "hello_world"
+    redirect_to controller: "module_test/module_redirect", action: "hello_world"
   end
 
   def redirect_to_url
@@ -66,10 +90,6 @@ class RedirectController < ActionController::Base
     redirect_to "//www.rubyonrails.org/"
   end
 
-  def redirect_to_back
-    redirect_to :back
-  end
-
   def redirect_to_existing_record
     redirect_to Workshop.new(5)
   end
@@ -83,7 +103,7 @@ class RedirectController < ActionController::Base
   end
 
   def redirect_to_params
-    redirect_to ActionController::Parameters.new(status: 200, protocol: 'javascript', f: '%0Aeval(name)')
+    redirect_to ActionController::Parameters.new(status: 200, protocol: "javascript", f: "%0Aeval(name)")
   end
 
   def redirect_to_with_block
@@ -96,7 +116,7 @@ class RedirectController < ActionController::Base
   end
 
   def redirect_to_with_block_and_options
-    redirect_to proc { {:action => "hello_world"} }
+    redirect_to proc { { action: "hello_world" } }
   end
 
   def redirect_with_header_break
@@ -109,9 +129,9 @@ class RedirectController < ActionController::Base
 
   def rescue_errors(e) raise e end
 
-  protected
+  private
     def dashbord_url(id, message)
-      url_for :action => "dashboard", :params => { "id" => id, "message" => message }
+      url_for action: "dashboard", params: { "id" => id, "message" => message }
     end
 end
 
@@ -172,7 +192,6 @@ class RedirectTest < ActionController::TestCase
     assert_equal "http://www.example.com", redirect_to_url
   end
 
-
   def test_relative_url_redirect_with_status
     get :relative_url_redirect_with_status
     assert_response 302
@@ -185,17 +204,10 @@ class RedirectTest < ActionController::TestCase
     assert_equal "http://test.host/things/stuff", redirect_to_url
   end
 
-  def test_redirect_to_back_with_status
-    @request.env["HTTP_REFERER"] = "http://www.example.com/coming/from"
-    get :redirect_to_back_with_status
-    assert_response 307
-    assert_equal "http://www.example.com/coming/from", redirect_to_url
-  end
-
   def test_simple_redirect_using_options
     get :host_redirect
     assert_response :redirect
-    assert_redirected_to :action => "other_host", :only_path => false, :host => 'other.test.host'
+    assert_redirected_to action: "other_host", only_path: false, host: "other.test.host"
   end
 
   def test_module_redirect
@@ -207,7 +219,7 @@ class RedirectTest < ActionController::TestCase
   def test_module_redirect_using_options
     get :module_redirect
     assert_response :redirect
-    assert_redirected_to :controller => 'module_test/module_redirect', :action => 'hello_world'
+    assert_redirected_to controller: "module_test/module_redirect", action: "hello_world"
   end
 
   def test_redirect_to_url
@@ -234,25 +246,48 @@ class RedirectTest < ActionController::TestCase
     assert_equal "//www.rubyonrails.org/", redirect_to_url
   end
 
-  def test_redirect_to_back
-    @request.env["HTTP_REFERER"] = "http://www.example.com/coming/from"
-    get :redirect_to_back
-    assert_response :redirect
-    assert_equal "http://www.example.com/coming/from", redirect_to_url
+  def test_redirect_back
+    referer = "http://www.example.com/coming/from"
+    @request.env["HTTP_REFERER"] = referer
+
+    get :redirect_back_with_status
+
+    assert_response 307
+    assert_equal referer, redirect_to_url
   end
 
-  def test_redirect_to_back_with_no_referer
-    assert_raise(ActionController::RedirectBackError) {
-      @request.env["HTTP_REFERER"] = nil
-      get :redirect_to_back
-    }
+  def test_redirect_back_with_no_referer
+    get :redirect_back_with_status
+
+    assert_response 307
+    assert_equal "http://test.host/things/stuff", redirect_to_url
+  end
+
+  def test_safe_redirect_back_from_other_host
+    @request.env["HTTP_REFERER"] = "http://another.host/coming/from"
+    get :safe_redirect_back_with_status
+
+    assert_response 307
+    assert_equal "http://test.host/things/stuff", redirect_to_url
+  end
+
+  def test_safe_redirect_back_from_the_same_host
+    referer = "http://test.host/coming/from"
+    @request.env["HTTP_REFERER"] = referer
+    get :safe_redirect_back_with_status
+
+    assert_response 307
+    assert_equal referer, redirect_to_url
   end
 
   def test_redirect_to_record
     with_routing do |set|
       set.draw do
         resources :workshops
-        get ':controller/:action'
+
+        ActiveSupport::Deprecation.silence do
+          get ":controller/:action"
+        end
       end
 
       get :redirect_to_existing_record
@@ -273,10 +308,10 @@ class RedirectTest < ActionController::TestCase
   end
 
   def test_redirect_to_params
-    error = assert_raise(ActionController::ActionControllerError) do
+    error = assert_raise(ActionController::UnfilteredParameters) do
       get :redirect_to_params
     end
-    assert_equal "Cannot redirect to a parameter hash!", error.message
+    assert_equal "unable to convert unpermitted parameters to hash", error.message
   end
 
   def test_redirect_to_with_block
@@ -294,7 +329,9 @@ class RedirectTest < ActionController::TestCase
   def test_redirect_to_with_block_and_accepted_options
     with_routing do |set|
       set.draw do
-        get ':controller/:action'
+        ActiveSupport::Deprecation.silence do
+          get ":controller/:action"
+        end
       end
 
       get :redirect_to_with_block_and_options
@@ -308,7 +345,7 @@ end
 module ModuleTest
   class ModuleRedirectController < ::RedirectController
     def module_redirect
-      redirect_to :controller => '/redirect', :action => "hello_world"
+      redirect_to controller: "/redirect", action: "hello_world"
     end
   end
 
@@ -324,7 +361,7 @@ module ModuleTest
     def test_simple_redirect_using_options
       get :host_redirect
       assert_response :redirect
-      assert_redirected_to :action => "other_host", :only_path => false, :host => 'other.test.host'
+      assert_redirected_to action: "other_host", only_path: false, host: "other.test.host"
     end
 
     def test_module_redirect
@@ -336,7 +373,7 @@ module ModuleTest
     def test_module_redirect_using_options
       get :module_redirect
       assert_response :redirect
-      assert_redirected_to :controller => '/redirect', :action => "hello_world"
+      assert_redirected_to controller: "/redirect", action: "hello_world"
     end
   end
 end

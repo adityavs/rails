@@ -1,12 +1,21 @@
-require 'action_view/helpers/tag_helper'
-require 'active_support/core_ext/string/access'
-require 'i18n/exceptions'
+# frozen_string_literal: true
+
+require "action_view/helpers/tag_helper"
+require "active_support/core_ext/string/access"
+require "i18n/exceptions"
 
 module ActionView
   # = Action View Translation Helpers
-  module Helpers
+  module Helpers #:nodoc:
     module TranslationHelper
+      extend ActiveSupport::Concern
+
       include TagHelper
+
+      included do
+        mattr_accessor :debug_missing_translation, default: true
+      end
+
       # Delegates to <tt>I18n#translate</tt> but also performs three additional
       # functions.
       #
@@ -51,7 +60,11 @@ module ActionView
       def translate(key, options = {})
         options = options.dup
         has_default = options.has_key?(:default)
-        remaining_defaults = Array(options.delete(:default)).compact
+        if has_default
+          remaining_defaults = Array(options.delete(:default)).compact
+        else
+          remaining_defaults = []
+        end
 
         if has_default && !remaining_defaults.first.kind_of?(Symbol)
           options[:default] = remaining_defaults
@@ -88,14 +101,16 @@ module ActionView
           raise e if raise_error
 
           keys = I18n.normalize_keys(e.locale, e.key, e.options[:scope])
-          title = "translation missing: #{keys.join('.')}"
+          title = "translation missing: #{keys.join('.')}".dup
 
           interpolations = options.except(:default, :scope)
           if interpolations.any?
-            title << ", " << interpolations.map { |k, v| "#{k}: #{ERB::Util.html_escape(v)}" }.join(', ')
+            title << ", " << interpolations.map { |k, v| "#{k}: #{ERB::Util.html_escape(v)}" }.join(", ")
           end
 
-          content_tag('span', keys.last.to_s.titleize, class: 'translation_missing', title: title)
+          return title unless ActionView::Base.debug_missing_translation
+
+          content_tag("span", keys.last.to_s.titleize, class: "translation_missing", title: title)
         end
       end
       alias :t :translate
@@ -111,9 +126,12 @@ module ActionView
 
       private
         def scope_key_by_partial(key)
-          if key.to_s.first == "."
+          stringified_key = key.to_s
+          if stringified_key.first == "."
             if @virtual_path
-              @virtual_path.gsub(%r{/_?}, ".") + key.to_s
+              @_scope_key_by_partial_cache ||= {}
+              @_scope_key_by_partial_cache[@virtual_path] ||= @virtual_path.gsub(%r{/_?}, ".")
+              "#{@_scope_key_by_partial_cache[@virtual_path]}#{stringified_key}"
             else
               raise "Cannot use t(#{key.inspect}) shortcut because path is not available"
             end
@@ -123,7 +141,7 @@ module ActionView
         end
 
         def html_safe_translation_key?(key)
-          key.to_s =~ /(\b|_|\.)html$/
+          /(\b|_|\.)html$/.match?(key.to_s)
         end
     end
   end

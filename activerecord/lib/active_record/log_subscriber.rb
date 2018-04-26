@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module ActiveRecord
   class LogSubscriber < ActiveSupport::LogSubscriber
     IGNORE_PAYLOAD_NAMES = ["SCHEMA", "EXPLAIN"]
@@ -15,36 +17,24 @@ module ActiveRecord
       rt
     end
 
-    def initialize
-      super
-      @odd = false
-    end
-
-    def render_bind(attribute)
-      value = if attribute.type.binary? && attribute.value
-        "<#{attribute.value.bytesize} bytes of binary data>"
-      else
-        attribute.value_for_database
-      end
-
-      [attribute.name, value]
-    end
-
     def sql(event)
-      return unless logger.debug?
-
       self.class.runtime += event.duration
+      return unless logger.debug?
 
       payload = event.payload
 
       return if IGNORE_PAYLOAD_NAMES.include?(payload[:name])
 
       name  = "#{payload[:name]} (#{event.duration.round(1)}ms)"
+      name  = "CACHE #{name}" if payload[:cached]
       sql   = payload[:sql]
       binds = nil
 
       unless (payload[:binds] || []).empty?
-        binds = "  " + payload[:binds].map { |attr| render_bind(attr) }.inspect
+        casted_params = type_casted_binds(payload[:type_casted_binds])
+        binds = "  " + payload[:binds].zip(casted_params).map { |attr, value|
+          render_bind(attr, value)
+        }.inspect
       end
 
       name = colorize_payload_name(name, payload[:name])
@@ -54,20 +44,33 @@ module ActiveRecord
     end
 
     private
-
-    def colorize_payload_name(name, payload_name)
-      if payload_name.blank? || payload_name == "SQL" # SQL vs Model Load/Exists
-        color(name, MAGENTA, true)
-      else
-        color(name, CYAN, true)
+      def type_casted_binds(casted_binds)
+        casted_binds.respond_to?(:call) ? casted_binds.call : casted_binds
       end
-    end
 
-    def sql_color(sql)
-      case sql
+      def render_bind(attr, value)
+        if attr.is_a?(Array)
+          attr = attr.first
+        elsif attr.type.binary? && attr.value
+          value = "<#{attr.value_for_database.to_s.bytesize} bytes of binary data>"
+        end
+
+        [attr && attr.name, value]
+      end
+
+      def colorize_payload_name(name, payload_name)
+        if payload_name.blank? || payload_name == "SQL" # SQL vs Model Load/Exists
+          color(name, MAGENTA, true)
+        else
+          color(name, CYAN, true)
+        end
+      end
+
+      def sql_color(sql)
+        case sql
         when /\A\s*rollback/mi
           RED
-        when /\s*.*?select .*for update/mi, /\A\s*lock/mi
+        when /select .*for update/mi, /\A\s*lock/mi
           WHITE
         when /\A\s*select/i
           BLUE
@@ -81,12 +84,53 @@ module ActiveRecord
           CYAN
         else
           MAGENTA
+        end
       end
-    end
 
-    def logger
-      ActiveRecord::Base.logger
-    end
+      def logger
+        ActiveRecord::Base.logger
+      end
+
+      def debug(progname = nil, &block)
+        return unless super
+
+        if ActiveRecord::Base.verbose_query_logs
+          log_query_source
+        end
+      end
+
+      def log_query_source
+        source_line, line_number = extract_callstack(caller_locations)
+
+        if source_line
+          if defined?(::Rails.root)
+            app_root = "#{::Rails.root.to_s}/".freeze
+            source_line = source_line.sub(app_root, "")
+          end
+
+          logger.debug("  ↳ #{ source_line }:#{ line_number }")
+        end
+      end
+
+      def extract_callstack(callstack)
+        line = callstack.find do |frame|
+          frame.absolute_path && !ignored_callstack(frame.absolute_path)
+        end
+
+        offending_line = line || callstack.first
+
+        [
+          offending_line.path,
+          offending_line.lineno
+        ]
+      end
+
+      RAILS_GEM_ROOT = File.expand_path("../../..", __dir__) + "/"
+
+      def ignored_callstack(path)
+        path.start_with?(RAILS_GEM_ROOT) ||
+        path.start_with?(RbConfig::CONFIG["rubylibdir"])
+      end
   end
 end
 

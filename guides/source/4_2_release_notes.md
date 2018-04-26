@@ -179,7 +179,7 @@ change your code to use the explicit form (`render file: "foo/bar"`) instead.
 
 `respond_with` and the corresponding class-level `respond_to` have been moved
 to the [responders](https://github.com/plataformatec/responders) gem. Add
-`gem 'responders', '~> 2.0'` to your Gemfile to use it:
+`gem 'responders', '~> 2.0'` to your `Gemfile` to use it:
 
 ```ruby
 # app/controllers/users_controller.rb
@@ -368,7 +368,7 @@ Please refer to the [Changelog][railties] for detailed changes.
 
 ### Notable changes
 
-*   Introduced `web-console` in the default application Gemfile.
+*   Introduced `web-console` in the default application `Gemfile`.
     ([Pull Request](https://github.com/rails/rails/pull/11667))
 
 *   Added a `required` option to the model generator for associations.
@@ -405,7 +405,7 @@ Please refer to the [Changelog][railties] for detailed changes.
       url: http://localhost:3001
       namespace: my_app_development
 
-    # config/production.rb
+    # config/environments/production.rb
     Rails.application.configure do
       config.middleware.use ExceptionNotifier, config_for(:exception_notification)
     end
@@ -871,7 +871,7 @@ Please refer to the [Changelog][active-support] for detailed changes.
     `module Foo; extend ActiveSupport::Concern; end` boilerplate.
     ([Commit](https://github.com/rails/rails/commit/b16c36e688970df2f96f793a759365b248b582ad))
 
-*   New [guide](constant_autoloading_and_reloading.html) about constant autoloading and reloading.
+*   New [guide](autoloading_and_reloading_constants.html) about constant autoloading and reloading.
 
 Credits
 -------

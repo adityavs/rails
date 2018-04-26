@@ -1,24 +1,21 @@
-require 'active_support/core_ext/hash'
+# frozen_string_literal: true
+
+require "active_support/core_ext/hash"
 
 module ActiveJob
   # Raised when an exception is raised during job arguments deserialization.
   #
-  # Wraps the original exception raised as +original_exception+.
+  # Wraps the original exception raised as +cause+.
   class DeserializationError < StandardError
-    # The original exception that was raised during deserialization of job
-    # arguments.
-    attr_reader :original_exception
-
-    def initialize(e) #:nodoc:
-      super("Error while trying to deserialize arguments: #{e.message}")
-      @original_exception = e
-      set_backtrace e.backtrace
+    def initialize #:nodoc:
+      super("Error while trying to deserialize arguments: #{$!.message}")
+      set_backtrace $!.backtrace
     end
   end
 
   # Raised when an unsupported argument type is set as a job argument. We
-  # currently support NilClass, Fixnum, Float, String, TrueClass, FalseClass,
-  # Bignum and objects that can be represented as GlobalIDs (ex: Active Record).
+  # currently support NilClass, Integer, Float, String, TrueClass, FalseClass,
+  # BigDecimal, and objects that can be represented as GlobalIDs (ex: Active Record).
   # Raised if you set the key for a Hash something else than a string or
   # a symbol. Also raised when trying to serialize an object which can't be
   # identified with a Global ID - such as an unpersisted Active Record model.
@@ -27,7 +24,7 @@ module ActiveJob
   module Arguments
     extend self
     # :nodoc:
-    TYPE_WHITELIST = [ NilClass, Fixnum, Float, String, TrueClass, FalseClass, Bignum ]
+    TYPE_WHITELIST = [ NilClass, String, Integer, Float, BigDecimal, TrueClass, FalseClass ]
 
     # Serializes a set of arguments. Whitelisted types are returned
     # as-is. Arrays/Hashes are serialized element by element.
@@ -41,18 +38,29 @@ module ActiveJob
     # All other types are deserialized using GlobalID.
     def deserialize(arguments)
       arguments.map { |argument| deserialize_argument(argument) }
-    rescue => e
-      raise DeserializationError.new(e)
+    rescue
+      raise DeserializationError
     end
 
     private
+
       # :nodoc:
-      GLOBALID_KEY = '_aj_globalid'.freeze
+      GLOBALID_KEY = "_aj_globalid".freeze
       # :nodoc:
-      SYMBOL_KEYS_KEY = '_aj_symbol_keys'.freeze
+      SYMBOL_KEYS_KEY = "_aj_symbol_keys".freeze
       # :nodoc:
-      WITH_INDIFFERENT_ACCESS_KEY = '_aj_hash_with_indifferent_access'.freeze
-      private_constant :GLOBALID_KEY, :SYMBOL_KEYS_KEY, :WITH_INDIFFERENT_ACCESS_KEY
+      WITH_INDIFFERENT_ACCESS_KEY = "_aj_hash_with_indifferent_access".freeze
+      # :nodoc:
+      OBJECT_SERIALIZER_KEY = "_aj_serialized"
+
+      # :nodoc:
+      RESERVED_KEYS = [
+        GLOBALID_KEY, GLOBALID_KEY.to_sym,
+        SYMBOL_KEYS_KEY, SYMBOL_KEYS_KEY.to_sym,
+        OBJECT_SERIALIZER_KEY, OBJECT_SERIALIZER_KEY.to_sym,
+        WITH_INDIFFERENT_ACCESS_KEY, WITH_INDIFFERENT_ACCESS_KEY.to_sym,
+      ]
+      private_constant :RESERVED_KEYS
 
       def serialize_argument(argument)
         case argument
@@ -72,7 +80,7 @@ module ActiveJob
           result[SYMBOL_KEYS_KEY] = symbol_keys
           result
         else
-          raise SerializationError.new("Unsupported argument type: #{argument.class.name}")
+          Serializers.serialize(argument)
         end
       end
 
@@ -87,6 +95,8 @@ module ActiveJob
         when Hash
           if serialized_global_id?(argument)
             deserialize_global_id argument
+          elsif custom_serialized?(argument)
+            Serializers.deserialize(argument)
           else
             deserialize_hash(argument)
           end
@@ -96,11 +106,15 @@ module ActiveJob
       end
 
       def serialized_global_id?(hash)
-        hash.size == 1 and hash.include?(GLOBALID_KEY)
+        hash.size == 1 && hash.include?(GLOBALID_KEY)
       end
 
       def deserialize_global_id(hash)
         GlobalID::Locator.locate hash[GLOBALID_KEY]
+      end
+
+      def custom_serialized?(hash)
+        hash.key?(OBJECT_SERIALIZER_KEY)
       end
 
       def serialize_hash(argument)
@@ -118,14 +132,6 @@ module ActiveJob
         end
         result
       end
-
-      # :nodoc:
-      RESERVED_KEYS = [
-        GLOBALID_KEY, GLOBALID_KEY.to_sym,
-        SYMBOL_KEYS_KEY, SYMBOL_KEYS_KEY.to_sym,
-        WITH_INDIFFERENT_ACCESS_KEY, WITH_INDIFFERENT_ACCESS_KEY.to_sym,
-      ]
-      private_constant :RESERVED_KEYS
 
       def serialize_hash_key(key)
         case key

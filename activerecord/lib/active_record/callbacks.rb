@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module ActiveRecord
   # = Active Record \Callbacks
   #
@@ -53,9 +55,9 @@ module ActiveRecord
   #   end
   #
   #   class Firm < ActiveRecord::Base
-  #     # Destroys the associated clients and people when the firm is destroyed
-  #     before_destroy { |record| Person.destroy_all "firm_id = #{record.id}"   }
-  #     before_destroy { |record| Client.destroy_all "client_of = #{record.id}" }
+  #     # Disables access to the system, for associated clients and people when the firm is destroyed
+  #     before_destroy { |record| Person.where(firm_id: record.id).update_all(access: 'disabled')   }
+  #     before_destroy { |record| Client.where(client_of: record.id).update_all(access: 'disabled') }
   #   end
   #
   # == Inheritable callback queues
@@ -73,21 +75,7 @@ module ActiveRecord
   #   end
   #
   # Now, when <tt>Topic#destroy</tt> is run only +destroy_author+ is called. When <tt>Reply#destroy</tt> is
-  # run, both +destroy_author+ and +destroy_readers+ are called. Contrast this to the following situation
-  # where the +before_destroy+ method is overridden:
-  #
-  #   class Topic < ActiveRecord::Base
-  #     def before_destroy() destroy_author end
-  #   end
-  #
-  #   class Reply < Topic
-  #     def before_destroy() destroy_readers end
-  #   end
-  #
-  # In that case, <tt>Reply#destroy</tt> would only run +destroy_readers+ and _not_ +destroy_author+.
-  # So, use the callback macros when you want to ensure that a certain callback is called for the entire
-  # hierarchy, and use the regular overwritable methods when you want to leave it up to each descendant
-  # to decide whether they want to call +super+ and trigger the inherited callbacks.
+  # run, both +destroy_author+ and +destroy_readers+ are called.
   #
   # *IMPORTANT:* In order for inheritance to work for the callback queues, you must specify the
   # callbacks before specifying the associations. Otherwise, you might trigger the loading of a
@@ -96,9 +84,9 @@ module ActiveRecord
   # == Types of callbacks
   #
   # There are four types of callbacks accepted by the callback macros: Method references (symbol), callback objects,
-  # inline methods (using a proc), and inline eval methods (using a string). Method references and callback objects
+  # inline methods (using a proc). Method references and callback objects
   # are the recommended approaches, inline methods using a proc are sometimes appropriate (such as for
-  # creating mix-ins), and inline eval methods are deprecated.
+  # creating mix-ins).
   #
   # The method reference callbacks work by specifying a protected or private method available in the object, like this:
   #
@@ -175,26 +163,11 @@ module ActiveRecord
   #       end
   #   end
   #
-  # The callback macros usually accept a symbol for the method they're supposed to run, but you can also
-  # pass a "method string", which will then be evaluated within the binding of the callback. Example:
-  #
-  #   class Topic < ActiveRecord::Base
-  #     before_destroy 'self.class.delete_all "parent_id = #{id}"'
-  #   end
-  #
-  # Notice that single quotes (') are used so the <tt>#{id}</tt> part isn't evaluated until the callback
-  # is triggered. Also note that these inline callbacks can be stacked just like the regular ones:
-  #
-  #   class Topic < ActiveRecord::Base
-  #     before_destroy 'self.class.delete_all "parent_id = #{id}"',
-  #                    'puts "Evaluated after parents are destroyed"'
-  #   end
-  #
   # == <tt>before_validation*</tt> returning statements
   #
   # If the +before_validation+ callback throws +:abort+, the process will be
   # aborted and {ActiveRecord::Base#save}[rdoc-ref:Persistence#save] will return +false+.
-  # If {ActiveRecord::Base#save!}[rdoc-ref:Persistence#save!] is called it will raise a ActiveRecord::RecordInvalid exception.
+  # If {ActiveRecord::Base#save!}[rdoc-ref:Persistence#save!] is called it will raise an ActiveRecord::RecordInvalid exception.
   # Nothing will be appended to the errors object.
   #
   # == Canceling callbacks
@@ -208,12 +181,12 @@ module ActiveRecord
   #
   # Sometimes the code needs that the callbacks execute in a specific order. For example, a +before_destroy+
   # callback (+log_children+ in this case) should be executed before the children get destroyed by the
-  # <tt>dependent: destroy</tt> option.
+  # <tt>dependent: :destroy</tt> option.
   #
   # Let's look at the code below:
   #
   #   class Topic < ActiveRecord::Base
-  #     has_many :children, dependent: destroy
+  #     has_many :children, dependent: :destroy
   #
   #     before_destroy :log_children
   #
@@ -228,7 +201,7 @@ module ActiveRecord
   # You can use the +prepend+ option on the +before_destroy+ callback to avoid this.
   #
   #   class Topic < ActiveRecord::Base
-  #     has_many :children, dependent: destroy
+  #     has_many :children, dependent: :destroy
   #
   #     before_destroy :log_children, prepend: true
   #
@@ -238,7 +211,56 @@ module ActiveRecord
   #       end
   #   end
   #
-  # This way, the +before_destroy+ gets executed before the <tt>dependent: destroy</tt> is called, and the data is still available.
+  # This way, the +before_destroy+ gets executed before the <tt>dependent: :destroy</tt> is called, and the data is still available.
+  #
+  # Also, there are cases when you want several callbacks of the same type to
+  # be executed in order.
+  #
+  # For example:
+  #
+  #   class Topic < ActiveRecord::Base
+  #     has_many :children
+  #
+  #     after_save :log_children
+  #     after_save :do_something_else
+  #
+  #     private
+  #
+  #     def log_children
+  #       # Child processing
+  #     end
+  #
+  #     def do_something_else
+  #       # Something else
+  #     end
+  #   end
+  #
+  # In this case the +log_children+ gets executed before +do_something_else+.
+  # The same applies to all non-transactional callbacks.
+  #
+  # In case there are multiple transactional callbacks as seen below, the order
+  # is reversed.
+  #
+  # For example:
+  #
+  #   class Topic < ActiveRecord::Base
+  #     has_many :children
+  #
+  #     after_commit :log_children
+  #     after_commit :do_something_else
+  #
+  #     private
+  #
+  #     def log_children
+  #       # Child processing
+  #     end
+  #
+  #     def do_something_else
+  #       # Something else
+  #     end
+  #   end
+  #
+  # In this case the +do_something_else+ gets executed before +log_children+.
   #
   # == \Transactions
   #
@@ -280,17 +302,6 @@ module ActiveRecord
       :before_destroy, :around_destroy, :after_destroy, :after_commit, :after_rollback
     ]
 
-    module ClassMethods # :nodoc:
-      include ActiveModel::Callbacks
-    end
-
-    included do
-      include ActiveModel::Validations::Callbacks
-
-      define_model_callbacks :initialize, :find, :touch, :only => :after
-      define_model_callbacks :save, :create, :update, :destroy
-    end
-
     def destroy #:nodoc:
       @_destroy_callback_already_called ||= false
       return if @_destroy_callback_already_called
@@ -309,15 +320,15 @@ module ActiveRecord
 
   private
 
-    def create_or_update(*) #:nodoc:
+    def create_or_update(*)
       _run_save_callbacks { super }
     end
 
-    def _create_record #:nodoc:
+    def _create_record
       _run_create_callbacks { super }
     end
 
-    def _update_record(*) #:nodoc:
+    def _update_record(*)
       _run_update_callbacks { super }
     end
   end
